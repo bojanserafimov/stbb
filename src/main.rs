@@ -7,7 +7,7 @@ use termion::raw::IntoRawMode;
 use termion::cursor::DetectCursorPos;
 use std::io::Write;
 
-const MANUAL: &str = indoc::indoc! {r#"
+const MANUAL_LARGE: &str = indoc::indoc! {r#"
                       .   '||      '||
               ....  .||.   || ...   || ...
              ||. '   ||    ||'  ||  ||'  ||
@@ -38,6 +38,27 @@ const MANUAL: &str = indoc::indoc! {r#"
     other keys:        type stuff
 "#};
 
+const MANUAL_SMALL: &str = indoc::indoc! {r#"
+    Welcome to stbb: Simple Terminal Blackboard
+
+    ========== Normal mode commands ===========
+    q:         Quit the program
+    h j k l:   Move the cursor
+    b e:       Jump back/forward by 10 spaces
+    c:         Clear the entire screen
+    i:         Enter insert mode
+
+    ========== Insert mode commands ===========
+    Ctrl-[ or ESC:     Go back to normal mode
+    other keys:        type stuff
+"#};
+
+fn get_text_shape(text: &str) -> (u16, u16) {
+    let height = text.lines().count() as u16;
+    let width = text.lines().into_iter().fold(0, |longest, line| std::cmp::max(longest, line.len())) as u16;
+    (width, height)
+}
+
 enum Mode {
     Normal,
     Insert {
@@ -59,25 +80,35 @@ impl App {
     }
 
     fn show_manual(&mut self) -> Result<(), std::io::Error> {
-        // Decide where to print the manual
         let terminal_size = termion::terminal_size()?;
-        let manual_size = (
-            MANUAL.lines().into_iter().fold(0, |longest, line| std::cmp::max(longest, line.len())) as u16,
-            MANUAL.lines().count() as u16,
-        );
+
+        // Find the largest manual that fits on the screen
+        let mut manual = MANUAL_LARGE;
+        let mut manual_size = get_text_shape(manual);
+        if terminal_size.0 < manual_size.0 || terminal_size.1 < manual_size.1 {
+            manual = MANUAL_SMALL;
+            manual_size = get_text_shape(manual);
+        }
+
+        if terminal_size.0 < manual_size.0 || terminal_size.1 < manual_size.1 {
+            panic!("Terminal window too small. Need {} columns and {} rows", manual_size.0, manual_size.1);
+        }
+
+        // Decide where to print the manual
         let manual_origin = (
-            (terminal_size.0 - manual_size.0) / 2,  // TODO overflow on small screen
+            (terminal_size.0 - manual_size.0) / 2,
             (terminal_size.1 - manual_size.1) / 2);
 
         // Decide where to leave the cursor afterwards
-        let cursor_relative: (u16, u16) = (11, 16);
+        let cursor_relative: (u16, u16) = (5, 5);
         let cursor_absolute = (
             manual_origin.0 + cursor_relative.0,
             manual_origin.1 + cursor_relative.1);
 
-        for (index, line) in MANUAL.lines().enumerate() {
+        for (index, line) in manual.lines().enumerate() {
+            let row = manual_origin.1 + (index as u16);
             write!(self.raw_terminal, "{}{}",
-                   termion::cursor::Goto(manual_origin.0, manual_origin.1 + (index as u16)),
+                   termion::cursor::Goto(manual_origin.0, row),
                    line)?;
         }
         write!(self.raw_terminal, "{}", termion::cursor::Goto(cursor_absolute.0, cursor_absolute.1))?;
@@ -153,8 +184,6 @@ impl App {
 //   - Look into termion alternative screen but
 //     make sure not to capture panic output
 // - Implement Ctrl-z for minimizing the GUI
-// - Deal with tiny screen size
-//  - Show compact manual
 // - Add block visual mode
 fn main() -> Result<(), std::io::Error> {
     Ok(App::new()?.run()?)
