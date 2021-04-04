@@ -7,7 +7,7 @@ use termion::raw::IntoRawMode;
 use termion::cursor::DetectCursorPos;
 use std::io::Write;
 
-const MANUAL_LARGE: &str = indoc::indoc! {r#"
+const MANUAL: &str = indoc::indoc! {r#"
                       .   '||      '||
               ....  .||.   || ...   || ...
              ||. '   ||    ||'  ||  ||'  ||
@@ -27,28 +27,12 @@ const MANUAL_LARGE: &str = indoc::indoc! {r#"
     insert mode.
 
     ============= Normal mode commands ==============
-    q:                 Quit the program
-    h j k l:           Move the cursor
-    b e:               Jump back/forward by 10 spaces
-    c:                 Clear the entire screen
-    i:                 Enter insert mode
+    q:       Quit the program
+    hjkl:    Move the cursor. Hold shift to move fast
+    c:       Clear the entire screen
+    i:       Enter insert mode
 
     ============= Insert mode commands ==============
-    Ctrl-[ or ESC:     Go back to normal mode
-    other keys:        type stuff
-"#};
-
-const MANUAL_SMALL: &str = indoc::indoc! {r#"
-    Welcome to stbb: Simple Terminal Blackboard
-
-    ========== Normal mode commands ===========
-    q:         Quit the program
-    h j k l:   Move the cursor
-    b e:       Jump back/forward by 10 spaces
-    c:         Clear the entire screen
-    i:         Enter insert mode
-
-    ========== Insert mode commands ===========
     Ctrl-[ or ESC:     Go back to normal mode
     other keys:        type stuff
 "#};
@@ -82,13 +66,9 @@ impl App {
     fn show_manual(&mut self) -> Result<(), std::io::Error> {
         let terminal_size = termion::terminal_size()?;
 
-        // Find the largest manual that fits on the screen
-        let mut manual = MANUAL_LARGE;
-        let mut manual_size = get_text_shape(manual);
-        if terminal_size.0 < manual_size.0 || terminal_size.1 < manual_size.1 {
-            manual = MANUAL_SMALL;
-            manual_size = get_text_shape(manual);
-        }
+        // Choose a manual to display
+        let manual = MANUAL;
+        let manual_size = get_text_shape(manual);
 
         if terminal_size.0 < manual_size.0 || terminal_size.1 < manual_size.1 {
             panic!("Terminal window too small. Need {} columns and {} rows", manual_size.0, manual_size.1);
@@ -120,14 +100,29 @@ impl App {
     fn handle_input(&mut self, key: Key) -> Result<bool, std::io::Error> {
         match self.mode {
             Mode::Normal => match key {
-                Key::Char('q') => return Ok(false),
-                Key::Char('b') => write!(self.raw_terminal, "{}", termion::cursor::Left(10))?,
-                Key::Char('e') => write!(self.raw_terminal, "{}", termion::cursor::Right(10))?,
+
+                // Movement
                 Key::Char('h') => write!(self.raw_terminal, "{}", termion::cursor::Left(1))?,
                 Key::Char('l') => write!(self.raw_terminal, "{}", termion::cursor::Right(1))?,
                 Key::Char('k') => write!(self.raw_terminal, "{}", termion::cursor::Up(1))?,
                 Key::Char('j') => write!(self.raw_terminal, "{}", termion::cursor::Down(1))?,
+                Key::Char('H') => write!(self.raw_terminal, "{}", termion::cursor::Left(8))?,
+                Key::Char('L') => write!(self.raw_terminal, "{}", termion::cursor::Right(8))?,
+                Key::Char('K') => write!(self.raw_terminal, "{}", termion::cursor::Up(6))?,
+                Key::Char('J') => write!(self.raw_terminal, "{}", termion::cursor::Down(6))?,
+
+                // Experimental
+                Key::Char('d') => write!(self.raw_terminal, "{}", "▘")?,
+                Key::Char('f') => write!(self.raw_terminal, "{}", "▖")?,
+                Key::Char('D') => write!(self.raw_terminal, "{}", "▀")?,
+                Key::Char('F') => write!(self.raw_terminal, "{}", "▄")?,
+
+                // Erasing
+                Key::Char(' ') => write!(self.raw_terminal, "{}", " ")?,
                 Key::Char('c') => write!(self.raw_terminal, "{}", termion::clear::All)?,
+
+                // State changes
+                Key::Char('q') => return Ok(false),
                 Key::Char('i') => {
                     self.mode = Mode::Insert{
                         entrance: self.raw_terminal.cursor_pos()?,
@@ -138,6 +133,7 @@ impl App {
             },
             Mode::Insert { entrance } => match key {
                 Key::Char('\n') => {
+                    // On return, return to the column where insert mode entered
                     let cursor_pos = self.raw_terminal.cursor_pos()?;
                     write!(self.raw_terminal, "{}", termion::cursor::Goto(entrance.0, cursor_pos.1 + 1))?;
                 }
@@ -172,7 +168,10 @@ impl App {
                 break
             }
         }
-        self.clear_screen()?;
+
+        // Put cursor at end so the terminal prompt doesn't erase over the board
+        write!(self.raw_terminal, "{}", termion::cursor::Goto(10000, 10000))?;
+        self.raw_terminal.flush()?;
         Ok(())
     }
 }
