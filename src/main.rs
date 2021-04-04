@@ -66,7 +66,7 @@ impl App {
             MANUAL.lines().count() as u16,
         );
         let manual_origin = (
-            (terminal_size.0 - manual_size.0) / 2,
+            (terminal_size.0 - manual_size.0) / 2,  // TODO overflow on small screen
             (terminal_size.1 - manual_size.1) / 2);
 
         // Decide where to leave the cursor afterwards
