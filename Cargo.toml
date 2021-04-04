@@ -1,0 +1,15 @@
+[package]
+name = "stbb"
+version = "0.1.0"
+authors = ["Bojan Serafimov"]
+edition = "2018"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
+[dependencies]
+indoc = "1.0.3"
+termion = "1.5.6"
