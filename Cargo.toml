@@ -11,5 +11,4 @@ opt-level = 0
 opt-level = 3
 
 [dependencies]
-indoc = "1.0.3"
 termion = "1.5.6"

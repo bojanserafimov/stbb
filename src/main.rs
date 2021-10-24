@@ -1,41 +1,10 @@
-extern crate termion;
-extern crate indoc;
-
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 use termion::cursor::DetectCursorPos;
 use std::io::Write;
 
-const MANUAL: &str = indoc::indoc! {r#"
-                      .   '||      '||
-              ....  .||.   || ...   || ...
-             ||. '   ||    ||'  ||  ||'  ||
-             . '|..  ||    ||    |  ||    |
-             |'..|'  '|.'  '|...'   '|...'
-
-
-    Welcome to stbb, the Simple Terminal Blackboard.
-
-    You can type anywhere on the screen but you can't
-    scroll or save your work. This program doesn't
-    even store your text in memory. It only sends the
-    appropriate ANSI escape codes to the terminal to
-    temporarily display your text.
-
-    There are two modes of operation: Normal mode and
-    insert mode.
-
-    ============= Normal mode commands ==============
-    q:       Quit the program
-    hjkl:    Move the cursor. Hold shift to move fast
-    c:       Clear the entire screen
-    i:       Enter insert mode
-
-    ============= Insert mode commands ==============
-    Ctrl-[ or ESC:     Go back to normal mode
-    other keys:        type stuff
-"#};
+const MANUAL: &str = include_str!("./manual.txt");
 
 fn get_text_shape(text: &str) -> (u16, u16) {
     let height = text.lines().count() as u16;
